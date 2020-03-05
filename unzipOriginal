@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:spring="http://www.springframework.org/schema/beans" 
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-current.xsd
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd">
+    <file:connector name="File" autoDelete="true" streaming="false" validateConnections="true" doc:name="File"/>
+    <flow name="zipprojectFlow">
+        <file:inbound-endpoint path="C:\unzip\input" connector-ref="File" responseTimeout="10000" doc:name="File">
+			<file:filename-regex-filter pattern="(.*).zip" caseSensitive="true"/>
+		</file:inbound-endpoint>
+        <logger message="THE OUTPUT OF THE lOG FILE :-------#[payload] #[message.id]" level="INFO" doc:name="Logger"/>
+        <scatter-gather doc:name="Scatter-Gather">
+            <processor-chain>
+                <expression-component doc:name="Expression"><![CDATA[org.mule.util.FileUtils.unzip(new File('C:/unzip/input/'+message.inboundProperties.originalFilename), new File('C:/unzip/backup'));
+//new File(''C:/unzip/input/'+message.inboundProperties.originalFilename').delete();]]></expression-component>
+                <logger message="#['Extracted file exists: '+payload]" level="INFO" doc:name="Logger"/>
+            </processor-chain>
+            <processor-chain>
+                <expression-component doc:name="Expression"><![CDATA[ import java.io.*;
+import java.util.zip.*;
+
+//org.mule.util.FileUtils.unzip(new File('C:/FTP/Input/'+message.inboundProperties.originalFilename), new File('C:/FTP/output' + File.separator +message.id+fileName));
+ File dir = new File('C:/unzip/output');
+FileInputStream fis;
+ byte[] buffer = new byte[1024];
+fis = new FileInputStream('C:/unzip/input/'+message.inboundProperties.originalFilename);
+            ZipInputStream zis = new ZipInputStream(fis);
+            ZipEntry ze = zis.getNextEntry();
+while(ze != null){
+                String fileName = ze.getName();
+                File newFile = new File('C:/unzip/output'+ File.separator +message.id+fileName);
+new File(newFile.getParent()).mkdirs();
+                FileOutputStream fos = new FileOutputStream(newFile);
+                int len;
+                while ((len = zis.read(buffer)) > 0) {
+                fos.write(buffer, 0, len);
+                }
+                fos.close();
+                //close this ZipEntry
+                zis.closeEntry();
+                ze = zis.getNextEntry();
+}]]></expression-component>
+                <logger message="#['Extracted file exists1: '+payload]" level="INFO" doc:name="Logger"/>
+            </processor-chain>
+        </scatter-gather>
+        <set-payload value="#[payload]" doc:name="Set Payload"/>
+    </flow>
+</mule>
